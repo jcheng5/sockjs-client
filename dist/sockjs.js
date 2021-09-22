@@ -2448,12 +2448,16 @@ JsonpReceiver.prototype._callback = function(data) {
     return;
   }
 
-  if (data) {
-    debug('message', data);
-    this.emit('message', data);
+  try {
+    if (data) {
+      debug('message', data);
+      this.emit('message', data);
+    }
+  } finally {
+    // Must clean up even if 'message' event handlers throw
+    this.emit('close', null, 'network');
+    this.removeAllListeners();
   }
-  this.emit('close', null, 'network');
-  this.removeAllListeners();
 };
 
 JsonpReceiver.prototype._abort = function(err) {
@@ -2618,12 +2622,13 @@ XhrReceiver.prototype._chunkHandler = function(status, text) {
     return;
   }
 
-  for (var idx = -1; ; this.bufferPosition += idx + 1) {
+  for (var idx = -1; ; ) {
     var buf = text.slice(this.bufferPosition);
     idx = buf.indexOf('\n');
     if (idx === -1) {
       break;
     }
+    this.bufferPosition += idx + 1;
     var msg = buf.slice(0, idx);
     if (msg) {
       debug('message', msg);
